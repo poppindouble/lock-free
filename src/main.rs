@@ -1,32 +1,46 @@
 use std::boxed::Box;
 use std::{thread, time};
 
-struct LazyTransformer<S, V> {
+#[derive(Clone)]
+struct Status<S, V> {
     pub source: Option<S>,
     pub value: Option<V>,
-    pub transform_fn: Box<dyn Fn(S) -> V>,
 }
 
-impl<S: Clone, V: Clone> LazyTransformer<S, V> {
-    pub fn new(transform_fn: Box<dyn Fn(S) -> V>) -> Self {
-        LazyTransformer {
+impl<S, V> Status<S, V> {
+    pub fn new() -> Self {
+        Status {
             source: None,
             value: None,
+        }
+    }
+}
+
+#[derive(Clone)]
+struct LazyTransformer<S, V, FN> {
+    pub status: Status<S, V>,
+    pub transform_fn: FN,
+}
+
+impl<S: Clone, V: Clone, FN: Fn(S) -> V> LazyTransformer<S, V, FN> {
+    pub fn new(transform_fn: FN) -> Self {
+        LazyTransformer {
+            status: Status::new(),
             transform_fn,
         }
     }
 
     pub fn set_source(&mut self, source: S) {
-        self.source = Some(source);
+        self.status.source = Some(source);
     }
 
     pub fn get_transformed(&mut self) -> Option<V> {
-        if let Some(source) = &self.source {
+        if let Some(source) = &self.status.source {
             let value = (self.transform_fn)(source.clone());
-            self.value = Some(value.clone());
-            return Some(value);
+            self.status.value = Some(value.clone());
+            println!("here");
         }
-        return self.value.clone();
+        return self.status.value.clone();
     }
 }
 
@@ -38,8 +52,11 @@ fn main() {
         return sec;
     });
     let mut lazy_transformer = LazyTransformer::new(transform_fn);
+    let mut lazy_clone = lazy_transformer.clone();
+    thread::spawn(move || {
+        lazy_clone.set_source(5);
+    }).join();
 
-    lazy_transformer.set_source(5);
     let value = lazy_transformer.get_transformed();
 
     println!("{:?}", value);
