@@ -1,5 +1,6 @@
 use std::boxed::Box;
 use std::{thread, time};
+use std::sync::Mutex;
 
 #[derive(Clone)]
 struct Status<S, V> {
@@ -18,29 +19,31 @@ impl<S, V> Status<S, V> {
 
 #[derive(Clone)]
 struct LazyTransformer<S, V, FN> {
-    pub status: Status<S, V>,
+    pub status: Mutex<Status<S, V>>,
     pub transform_fn: FN,
 }
 
 impl<S: Clone, V: Clone, FN: Fn(S) -> V> LazyTransformer<S, V, FN> {
     pub fn new(transform_fn: FN) -> Self {
         LazyTransformer {
-            status: Status::new(),
+            status: Mutex::new(Status::new()),
             transform_fn,
         }
     }
 
-    pub fn set_source(&mut self, source: S) {
-        self.status.source = Some(source);
+    pub fn set_source(&self, source: S) {
+        let mut status = self.status.lock().unwrap();
+        status.source = Some(source);
     }
 
-    pub fn get_transformed(&mut self) -> Option<V> {
-        if let Some(source) = &self.status.source {
+    pub fn get_transformed(&self) -> Option<V> {
+        let mut status = self.status.lock().unwrap();
+        if let Some(source) = &status.source {
             let value = (self.transform_fn)(source.clone());
-            self.status.value = Some(value.clone());
-            println!("here");
+            status.value = Some(value.clone());
+            status.source = None;
         }
-        return self.status.value.clone();
+        return status.value.clone();
     }
 }
 
