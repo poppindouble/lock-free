@@ -1,46 +1,77 @@
-use std::boxed::Box;
 use std::{thread, time};
+use std::sync::{Arc, Mutex};
 
-struct LazyTransformer<S, V> {
-    pub source: Option<S>,
-    pub value: Option<V>,
-    pub transform_fn: Box<dyn Fn(S) -> V>,
+#[derive(Clone)]
+struct LazyTransformer<S, V, FN: Fn(S) -> V> {
+    pub source: Arc<Mutex<Option<S>>>,
+    pub value: Arc<Mutex<Option<V>>>,
+    pub transform_fn: FN,
 }
 
-impl<S: Clone, V: Clone> LazyTransformer<S, V> {
-    pub fn new(transform_fn: Box<dyn Fn(S) -> V>) -> Self {
+impl<S: Clone+Copy, V: Clone+Copy, FN: Fn(S) -> V> LazyTransformer<S, V, FN> {
+    pub fn new(transform_fn: FN) -> Self {
         LazyTransformer {
-            source: None,
-            value: None,
+            source: Arc::new(Mutex::new(None)),
+            value: Arc::new(Mutex::new(None)),
             transform_fn,
         }
     }
 
-    pub fn set_source(&mut self, source: S) {
-        self.source = Some(source);
+    pub fn set_source(&self, source: S) {
+        let mut source_guard = self.source.lock().unwrap();
+        *source_guard = Some(source);
     }
 
-    pub fn get_transformed(&mut self) -> Option<V> {
-        if let Some(source) = &self.source {
-            let value = (self.transform_fn)(source.clone());
-            self.value = Some(value.clone());
-            return Some(value);
+    pub fn get_transformed(&self) -> Option<V> {
+        let mut source_guard = self.source.lock().unwrap();
+        if let Some(source) = &*source_guard {
+            let new_value = (self.transform_fn)(source.clone());
+            let mut value = self.value.lock().unwrap();
+            *value = Some(new_value);
+            *source_guard = None;
+            return Some(new_value);
         }
-        return self.value.clone();
+        return self.value.lock().unwrap().clone();
     }
 }
 
 fn main() {
-    let transform_fn = Box::new(|sec| {
-        let sec = time::Duration::from_secs(sec);
+    let transform_fn = Box::new(|hold_val| {
+        let sec = time::Duration::from_secs(5);
+        println!("executing transform for {:?}.", sec);
         thread::sleep(sec);
-        println!("sleep for {:?}s.", sec);
-        return sec;
+        return hold_val;
     });
-    let mut lazy_transformer = LazyTransformer::new(transform_fn);
+    let lazy_transformer = LazyTransformer::new(transform_fn);
+    let mut handles = vec![];
 
-    lazy_transformer.set_source(5);
-    let value = lazy_transformer.get_transformed();
+    for i in 0..1000 {
+        let lazy_clone = lazy_transformer.clone();
+        let handle = thread::spawn(move || {
+            let sec = time::Duration::from_millis(100 * i);
+            thread::sleep(sec);
+            let value = lazy_clone.get_transformed();
+            println!("getting value {:?}", value);
+        });
+        handles.push(handle);
+    }
 
-    println!("{:?}", value);
+    println!("launched all readers");
+
+    for i in 0..10 {
+        let lazy_clone = lazy_transformer.clone();
+        let handle = thread::spawn(move || {
+            let sec = time::Duration::from_secs(i);
+            thread::sleep(sec);
+            println!("setting source {:?}", i);
+            lazy_clone.set_source(i);
+        });
+        handles.push(handle);
+    }
+
+    println!("launched all setters");
+
+    for handle in handles {
+        handle.join().unwrap();
+    }
 }
