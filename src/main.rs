@@ -1,6 +1,6 @@
 use std::boxed::Box;
 use std::{thread, time};
-use std::sync::Mutex;
+use std::sync::{Mutex, Arc};
 
 #[derive(Clone)]
 struct Status<S, V> {
@@ -19,14 +19,14 @@ impl<S, V> Status<S, V> {
 
 #[derive(Clone)]
 struct LazyTransformer<S, V, FN> {
-    pub status: Mutex<Status<S, V>>,
+    pub status: Arc<Mutex<Status<S, V>>>,
     pub transform_fn: FN,
 }
 
 impl<S: Clone, V: Clone, FN: Fn(S) -> V> LazyTransformer<S, V, FN> {
     pub fn new(transform_fn: FN) -> Self {
         LazyTransformer {
-            status: Mutex::new(Status::new()),
+            status: Arc::new(Mutex::new(Status::new())),
             transform_fn,
         }
     }
@@ -48,19 +48,42 @@ impl<S: Clone, V: Clone, FN: Fn(S) -> V> LazyTransformer<S, V, FN> {
 }
 
 fn main() {
-    let transform_fn = Box::new(|sec| {
-        let sec = time::Duration::from_secs(sec);
+    let transform_fn = Box::new(|hold_val| {
+        let sec = time::Duration::from_secs(5);
+        println!("executing transform for {:?}.", sec);
         thread::sleep(sec);
-        println!("sleep for {:?}s.", sec);
-        return sec;
+        return hold_val;
     });
-    let mut lazy_transformer = LazyTransformer::new(transform_fn);
-    let mut lazy_clone = lazy_transformer.clone();
-    thread::spawn(move || {
-        lazy_clone.set_source(5);
-    }).join();
+    let lazy_transformer = LazyTransformer::new(transform_fn);
+    let mut handles = vec![];
 
-    let value = lazy_transformer.get_transformed();
+    for i in 0..1000 {
+        let lazy_clone = lazy_transformer.clone();
+        let handle = thread::spawn(move || {
+            let sec = time::Duration::from_millis(100 * i);
+            thread::sleep(sec);
+            let value = lazy_clone.get_transformed();
+            println!("getting value {:?}", value);
+        });
+        handles.push(handle);
+    }
 
-    println!("{:?}", value);
+    println!("launched all readers");
+
+    for i in 0..10 {
+        let lazy_clone = lazy_transformer.clone();
+        let handle = thread::spawn(move || {
+            let sec = time::Duration::from_secs(i);
+            thread::sleep(sec);
+            println!("setting source {:?}", i);
+            lazy_clone.set_source(i);
+        });
+        handles.push(handle);
+    }
+
+    println!("launched all setters");
+
+    for handle in handles {
+        handle.join().unwrap();
+    }
 }
