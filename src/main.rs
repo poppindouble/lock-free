@@ -1,10 +1,10 @@
 use std::{thread, time};
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Mutex, RwLock};
 
 #[derive(Clone)]
 struct LazyTransformer<S, V, FN: Fn(S) -> V> {
     pub source: Arc<Mutex<Option<S>>>,
-    pub value: Arc<Mutex<Option<V>>>,
+    pub value: Arc<RwLock<Option<V>>>,
     pub transform_fn: FN,
 }
 
@@ -12,7 +12,7 @@ impl<S: Clone+Copy, V: Clone+Copy, FN: Fn(S) -> V> LazyTransformer<S, V, FN> {
     pub fn new(transform_fn: FN) -> Self {
         LazyTransformer {
             source: Arc::new(Mutex::new(None)),
-            value: Arc::new(Mutex::new(None)),
+            value: Arc::new(RwLock::new(None)),
             transform_fn,
         }
     }
@@ -26,12 +26,13 @@ impl<S: Clone+Copy, V: Clone+Copy, FN: Fn(S) -> V> LazyTransformer<S, V, FN> {
         let mut source_guard = self.source.lock().unwrap();
         if let Some(source) = &*source_guard {
             let new_value = (self.transform_fn)(source.clone());
-            let mut value = self.value.lock().unwrap();
-            *value = Some(new_value);
+            let mut value_write_guard = self.value.write().unwrap();
+            *value_write_guard = Some(new_value);
             *source_guard = None;
             return Some(new_value);
+        } else {
+            return *self.value.read().unwrap();
         }
-        return self.value.lock().unwrap().clone();
     }
 }
 
