@@ -1,43 +1,36 @@
-use std::sync::{Arc, Mutex, RwLock};
+use std::sync::atomic::{AtomicBool, AtomicU16, Ordering};
+use std::sync::Arc;
 use std::{thread, time};
 
 #[derive(Clone)]
-struct LazyTransformer<S, V, FN: Fn(S) -> V> {
-    pub source: Arc<Mutex<Option<S>>>,
-    pub value: Arc<RwLock<Option<V>>>,
+struct LazyTransformer<FN: Fn(u16) -> bool> {
+    pub source: Arc<AtomicU16>,
+    pub value: Arc<AtomicBool>,
     pub transform_fn: FN,
 }
 
-impl<S: Clone + Copy, V: Clone + Copy, FN: Fn(S) -> V> LazyTransformer<S, V, FN> {
+impl<FN: Fn(u16) -> bool> LazyTransformer<FN> {
     pub fn new(transform_fn: FN) -> Self {
         LazyTransformer {
-            source: Arc::new(Mutex::new(None)),
-            value: Arc::new(RwLock::new(None)),
+            source: Arc::new(AtomicU16::new(0)),
+            value: Arc::new(AtomicBool::new(true)),
             transform_fn,
         }
     }
 
-    pub fn set_source(&self, source: S) {
-        let mut source_guard = self.source.lock().unwrap();
-        *source_guard = Some(source);
+    pub fn set_source(&self, source: u16) {
+        (*self.source).store(source, Ordering::Release);
     }
 
-    pub fn get_transformed(&self) -> Option<V> {
-        if let Ok(mut source_guard) = self.source.try_lock() {
-            match *source_guard {
-                Some(source) => {
-                    let new_value = (self.transform_fn)(source);
-                    let mut value_guard = self.value.write().unwrap();
-                    *source_guard = None;
-                    *value_guard = Some(new_value);
-                    return Some(new_value);
-                }
-                None => {
-                    return *self.value.read().unwrap();
-                }
-            }
+    pub fn get_transformed(&self) -> bool {
+        let pre_source = self.source.swap(0, Ordering::AcqRel);
+        if pre_source != 0 {
+            let new_value = (self.transform_fn)(pre_source);
+            self.value.store(new_value, Ordering::Release);
+            return new_value;
         } else {
-            return *self.value.read().unwrap();
+            let cached_value = self.value.load(Ordering::Acquire);
+            return cached_value;
         }
     }
 }
@@ -47,7 +40,7 @@ fn main() {
         let sec = time::Duration::from_secs(5);
         println!("executing transform for {:?}.", sec);
         thread::sleep(sec);
-        return hold_val;
+        return hold_val % 2 == 0;
     });
     let lazy_transformer = LazyTransformer::new(transform_fn);
     let mut handles = vec![];
@@ -71,7 +64,7 @@ fn main() {
             let sec = time::Duration::from_secs(i);
             thread::sleep(sec);
             println!("setting source {:?}", i);
-            lazy_clone.set_source(i);
+            lazy_clone.set_source((i + 1) as u16);
         });
         handles.push(handle);
     }
