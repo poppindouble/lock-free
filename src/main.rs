@@ -1,5 +1,5 @@
-use std::{thread, time};
 use std::sync::{Arc, Mutex, RwLock};
+use std::{thread, time};
 
 #[derive(Clone)]
 struct LazyTransformer<S, V, FN: Fn(S) -> V> {
@@ -8,7 +8,7 @@ struct LazyTransformer<S, V, FN: Fn(S) -> V> {
     pub transform_fn: FN,
 }
 
-impl<S: Clone+Copy, V: Clone+Copy, FN: Fn(S) -> V> LazyTransformer<S, V, FN> {
+impl<S: Clone + Copy, V: Clone + Copy, FN: Fn(S) -> V> LazyTransformer<S, V, FN> {
     pub fn new(transform_fn: FN) -> Self {
         LazyTransformer {
             source: Arc::new(Mutex::new(None)),
@@ -23,13 +23,19 @@ impl<S: Clone+Copy, V: Clone+Copy, FN: Fn(S) -> V> LazyTransformer<S, V, FN> {
     }
 
     pub fn get_transformed(&self) -> Option<V> {
-        let mut source_guard = self.source.lock().unwrap();
-        if let Some(source) = &*source_guard {
-            let new_value = (self.transform_fn)(source.clone());
-            let mut value_write_guard = self.value.write().unwrap();
-            *value_write_guard = Some(new_value);
-            *source_guard = None;
-            return Some(new_value);
+        if let Ok(mut source_guard) = self.source.try_lock() {
+            match *source_guard {
+                Some(source) => {
+                    let new_value = (self.transform_fn)(source);
+                    let mut value_guard = self.value.write().unwrap();
+                    *source_guard = None;
+                    *value_guard = Some(new_value);
+                    return Some(new_value);
+                }
+                None => {
+                    return *self.value.read().unwrap();
+                }
+            }
         } else {
             return *self.value.read().unwrap();
         }
