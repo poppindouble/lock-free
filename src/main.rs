@@ -1,77 +1,99 @@
-use std::sync::atomic::{AtomicBool, AtomicU16, Ordering};
-use std::sync::Arc;
-use std::{thread, time};
+use std::cell::UnsafeCell;
+use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::{Arc, Barrier};
+use std::thread;
 
-#[derive(Clone)]
-struct LazyTransformer<FN: Fn(u16) -> bool> {
-    pub source: Arc<AtomicU16>,
-    pub value: Arc<AtomicBool>,
-    pub transform_fn: FN,
+struct UsizePair {
+    atom: AtomicUsize,
+    norm: UnsafeCell<usize>,
 }
 
-impl<FN: Fn(u16) -> bool> LazyTransformer<FN> {
-    pub fn new(transform_fn: FN) -> Self {
-        LazyTransformer {
-            source: Arc::new(AtomicU16::new(0)),
-            value: Arc::new(AtomicBool::new(true)),
-            transform_fn,
-        }
-    }
+// UnsafeCell is not thread-safe. So manually mark our UsizePair to be Sync.
+// (Effectively telling the compiler "I'll take care of it!")
+unsafe impl Sync for UsizePair {}
 
-    pub fn set_source(&self, source: u16) {
-        (*self.source).store(source, Ordering::Release);
-    }
-
-    pub fn get_transformed(&self) -> bool {
-        let pre_source = self.source.swap(0, Ordering::AcqRel);
-        if pre_source != 0 {
-            let new_value = (self.transform_fn)(pre_source);
-            self.value.store(new_value, Ordering::Release);
-            return new_value;
-        } else {
-            let cached_value = self.value.load(Ordering::Acquire);
-            return cached_value;
-        }
-    }
-}
+static NTHREADS: usize = 8;
+static NITERS: usize = 1000000;
 
 fn main() {
-    let transform_fn = Box::new(|hold_val| {
-        let sec = time::Duration::from_secs(5);
-        println!("executing transform for {:?}.", sec);
-        thread::sleep(sec);
-        return hold_val % 2 == 0;
-    });
-    let lazy_transformer = LazyTransformer::new(transform_fn);
-    let mut handles = vec![];
+    let upair = Arc::new(UsizePair::new(0));
 
-    for i in 0..1000 {
-        let lazy_clone = lazy_transformer.clone();
-        let handle = thread::spawn(move || {
-            let sec = time::Duration::from_millis(100 * i);
-            thread::sleep(sec);
-            let value = lazy_clone.get_transformed();
-            println!("getting value {:?}", value);
-        });
-        handles.push(handle);
+    // Barrier is a counter-like synchronization structure (not to be confused
+    // with a memory barrier). It blocks on a `wait` call until a fixed number
+    // of `wait` calls are made from various threads (like waiting for all
+    // players to get to the starting line before firing the starter pistol).
+    let barrier = Arc::new(Barrier::new(NTHREADS + 1));
+
+    let mut children = vec![];
+
+    for _ in 0..NTHREADS {
+        let upair = upair.clone();
+        let barrier = barrier.clone();
+        children.push(thread::spawn(move || {
+            barrier.wait();
+
+            let mut v = 0;
+            while v < NITERS - 1 {
+                // Read both members `atom` and `norm`, and check whether `atom`
+                // contains a newer value than `norm`. See `UsizePair` impl for
+                // details.
+                let (atom, norm) = upair.get();
+                if atom != norm {
+                    // If `Acquire`-`Release` ordering is used in `get` and
+                    // `set`, then this statement will never be reached.
+                    println!("Reordered! {} != {}", atom, norm);
+                }
+                v = atom;
+            }
+        }));
     }
 
-    println!("launched all readers");
+    barrier.wait();
 
-    for i in 0..10 {
-        let lazy_clone = lazy_transformer.clone();
-        let handle = thread::spawn(move || {
-            let sec = time::Duration::from_secs(i);
-            thread::sleep(sec);
-            println!("setting source {:?}", i);
-            lazy_clone.set_source((i + 1) as u16);
-        });
-        handles.push(handle);
+    for v in 1..NITERS {
+        // Update both members `atom` and `norm` to value `v`. See the impl for
+        // details.
+        upair.set(v);
     }
 
-    println!("launched all setters");
+    for child in children {
+        let _ = child.join();
+    }
+}
 
-    for handle in handles {
-        handle.join().unwrap();
+impl UsizePair {
+    pub fn new(v: usize) -> UsizePair {
+        UsizePair {
+            atom: AtomicUsize::new(v),
+            norm: UnsafeCell::new(v),
+        }
+    }
+
+    pub fn get(&self) -> (usize, usize) {
+        let atom = self.atom.load(Ordering::Acquire); //Ordering::Acquire
+
+        // If the above load operation is performed with `Acquire` ordering,
+        // then all writes before the corresponding `Release` store is
+        // guaranteed to be visible below.
+
+        let norm = unsafe { *self.norm.get() };
+        (atom, norm)
+    }
+
+    pub fn set(&self, v: usize) {
+        unsafe { *self.norm.get() = v };
+
+        // If the below store operation is performed with `Release` ordering,
+        // then the write to `norm` above is guaranteed to be visible to all
+        // threads that "loads `atom` with `Acquire` ordering and sees the same
+        // value that was stored below". However, no guarantees are provided as
+        // to when other readers will witness the below store, and consequently
+        // the above write. On the other hand, there is also no guarantee that
+        // these two values will be in sync for readers. Even if another thread
+        // sees the same value that was stored below, it may actually see a
+        // "later" value in `norm` than what was written above. That is, there
+        // is no restriction on visibility into the future.
+
+        self.atom.store(v, Ordering::Release); //Ordering::Release
     }
 }
