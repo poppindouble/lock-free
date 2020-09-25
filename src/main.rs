@@ -1,47 +1,25 @@
 use std::cell::UnsafeCell;
-use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Barrier};
 use std::thread;
 
-struct MyLock {
-    flag: Arc<AtomicBool>,
+struct UnthreadSafeStruct {
     data: UnsafeCell<usize>,
 }
 
-unsafe impl Sync for MyLock {}
+unsafe impl Sync for UnthreadSafeStruct {}
 
-impl MyLock {
-    pub fn new() -> MyLock {
-        MyLock {
-            flag: Arc::new(AtomicBool::new(false)),
+impl UnthreadSafeStruct {
+    pub fn new() -> UnthreadSafeStruct {
+        UnthreadSafeStruct {
             data: UnsafeCell::new(0),
         }
-    }
-
-    pub fn try_lock(&self) -> Option<MyLockGuard> {
-        let was_locked = self.flag.swap(true, Ordering::Acquire);
-        if was_locked {
-            None
-        } else {
-            Some(MyLockGuard { guard: self })
-        }
-    }
-}
-
-struct MyLockGuard<'a> {
-    guard: &'a MyLock,
-}
-
-impl<'a> Drop for MyLockGuard<'a> {
-    fn drop(&mut self) {
-        self.guard.flag.store(false, Ordering::Release);
     }
 }
 
 static NITERS: usize = 2000;
 
 fn main() {
-    let my_lock = Arc::new(MyLock::new());
+    let my_lock = Arc::new(UnthreadSafeStruct::new());
     let barrier = Arc::new(Barrier::new(NITERS));
 
     let mut children = vec![];
@@ -51,18 +29,9 @@ fn main() {
         let barrier = barrier.clone();
         children.push(thread::spawn(move || {
             barrier.wait();
-            loop {
-                if let Some(guard) = my_lock.try_lock() {
-                    // single thread accessing here.
-
-                    let mut value = unsafe { *guard.guard.data.get() };
-                    value += 1;
-                    unsafe { *guard.guard.data.get() = value };
-                    break;
-                } else {
-                    // fail to unlock
-                }
-            }
+            let mut value = unsafe { *my_lock.data.get() };
+            value += 1;
+            unsafe { *my_lock.data.get() = value };
         }));
     }
 
