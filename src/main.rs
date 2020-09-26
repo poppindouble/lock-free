@@ -1,6 +1,11 @@
 use std::boxed::Box;
 use std::{thread, time};
 
+trait Transformer<S,V> {
+    fn set_source(&mut self, source: S);
+    fn get_transformed(&mut self) -> Option<V>;
+}
+
 struct LazyTransformer<S, V> {
     pub source: Option<S>,
     pub value: Option<V>,
@@ -15,12 +20,15 @@ impl<S: Clone, V: Clone> LazyTransformer<S, V> {
             transform_fn,
         }
     }
+}
 
-    pub fn set_source(&mut self, source: S) {
+impl<S: Clone, V: Clone> Transformer<S, V> for LazyTransformer<S, V> {
+
+    fn set_source(&mut self, source: S) {
         self.source = Some(source);
     }
 
-    pub fn get_transformed(&mut self) -> Option<V> {
+    fn get_transformed(&mut self) -> Option<V> {
         if let Some(source) = &self.source {
             let value = (self.transform_fn)(source.clone());
             self.value = Some(value.clone());
@@ -35,7 +43,7 @@ fn main() {
     let transform_fn = Box::new(|sec| {
         let sec = time::Duration::from_secs(sec);
         thread::sleep(sec);
-        println!("sleep for {:?}s.", sec);
+        println!("sleep for {:?}.", sec);
         return sec;
     });
     let mut lazy_transformer = LazyTransformer::new(transform_fn);
