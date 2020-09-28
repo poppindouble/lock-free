@@ -10,8 +10,11 @@ fn main() {
     assert_eq!(cell.get(), 3);
 
     let ref_cell = RefCell::new(32);
-    let mut_ref = ref_cell.borrow_mut().unwrap();
-    *mut_ref = 100;
-
-    println!("{:?}", mut_ref);
+    {
+        let mut mut_ref_guard = ref_cell.borrow_mut().unwrap();
+        *mut_ref_guard = 100;
+        println!("{:?}", *mut_ref_guard);
+    }
+    let reference = ref_cell.borrow().unwrap();
+    println!("{:?}", *reference);
 }
