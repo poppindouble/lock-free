@@ -1,20 +1,23 @@
 mod cell;
-mod refcell;
+mod rc;
+//mod refcell;
 
 use crate::cell::Cell;
-use crate::refcell::RefCell;
+//use crate::refcell::RefCell;
+use crate::rc::Rc;
 
 fn main() {
     let cell = Cell::new(32);
-    cell.set(3);
-    assert_eq!(cell.get(), 3);
+    let rc_cell = Rc::new(cell);
 
-    let ref_cell = RefCell::new(32);
+    let rc1 = rc_cell.clone();
+
     {
-        let mut mut_ref_guard = ref_cell.borrow_mut().unwrap();
-        *mut_ref_guard = 100;
-        println!("{:?}", *mut_ref_guard);
+        let rc2 = rc_cell.clone();
+        rc2.set(3);
     }
-    let reference = ref_cell.borrow().unwrap();
-    println!("{:?}", *reference);
+
+    let value = rc1.get();
+
+    println!("{:?}", value);
 }
