@@ -1567,7 +1567,7 @@ Sounds familiar? Remember our ***Creed***? Some of the MESI protocol's content s
 
 The above gitbook doesn't provide a solid reference, however, in my humble opinion, it doesn't hurt to rethink Rust's creed from a CPU perspective, when multi-threads accessing our share memory, if you read the above protocol carefully, the CPU does provide certain restriction on data access, however, the above protocol only mentions some restrictions on ***the same memory location***, you can think the above restriction is just against ***one*** `&` or `&mut` variable in Rust code. This protocol doesn't mention anything regarding to different memory location, which is the case in our example early in this section. 
 
-The reason why I am demoing this model is because later on, it will be helpful to understand later 
+The reason why I am demoing this model is because it will be helpful to understand later stuff in this series blog.
 
 For more details you can ref to [Intels Developer Manual, Chapter 11.4](https://www.intel.com/content/dam/www/public/us/en/documents/manuals/64-ia-32-architectures-software-developer-vol-3a-part-1-manual.pdf).
 
