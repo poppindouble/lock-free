@@ -1578,6 +1578,9 @@ the reason cause the above error,
 compiler & cpu reordering.
 
 
+> I use the term lock-free to describe a system which is guaranteed to make forward progress within a finite number of execution steps.
+
+
 ## Atomic
 
 ## Memory Barrier
