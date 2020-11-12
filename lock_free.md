@@ -1561,7 +1561,7 @@ The last one is if we have ***Share*** cache line:
 
 Sounds familiar? Remember our ***Creed***? Some of the MESI protocol's content seems really match with our creed. Remember we have the immutable reference and mutable reference? `&` and `&mut` map really well to MESI protocol's ***Share*** and ***Exclusive***. From this [gitbook](https://cfsamsonbooks.gitbook.io/explaining-atomics-in-rust/#a-mental-model), 
 
-> In Rust, only data is ***Exclusive*** can be modified by default. Modelling this in the language can (and does) provide the possibility of optimizations which languages without these semantics can't do.
+> In Rust, only data is ***Exclusive*** can be modified by default. Modeling this in the language can (and does) provide the possibility of optimizations which languages without these semantics can't do.
 > ...
 > This means, as long as we don't break the rule and mutate Shared references, all Rust programs can assume that the L1 cache on the core they're running on is up to date and does not need any synchronization.
 
@@ -1573,9 +1573,30 @@ For more details you can ref to [Intels Developer Manual, Chapter 11.4](https://
 
 ### Compiler Reordering and CPU Reordering
 
-the reason cause the above error, 
+So far so good? Cool! Now we have a basic mentality model of how our CPU works. Let's go back to the previous example.
 
-compiler & cpu reordering.
+In our previous example: 
+
+Thread 1 does the following: 
+
+1. Store x
+2. Load y
+
+Thread 2 does the following:
+
+1. Store y
+2. Load x
+
+And the initial value of x and y are both 0.
+
+The only possible situations that give us the result `x = 0, y = 0` at the end of the execution:
+
+Load x -> Load y -> Store y -> Store x                  Result: r1 = 0, r2 = 0
+Load x -> Load y -> Store x -> Store y                  Result: r1 = 0, r2 = 0
+Load y -> Load x -> Store y -> Store x                  Result: r1 = 0, r2 = 0
+Load y -> Load x -> Store x -> Store y                  Result: r1 = 0, r2 = 0 
+
+compiler & CPU reordering.
 
 
 > I use the term lock-free to describe a system which is guaranteed to make forward progress within a finite number of execution steps.
