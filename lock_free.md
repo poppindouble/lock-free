@@ -1714,7 +1714,15 @@ fn main() {
 }
 ```
 
-I got some really interesting results on different computers! 
+I got some really interesting results on different computers! On a 13 inch MacBook Pro, the `println!` function never got executed, the configuration can be seem from previous section, however, on a 15 inch MacBook Pro, I got the following result:
+
+![Result](12.jpg)
+
+and here is my 15 inch MacBook Pro configuration:
+
+![Configuration](13.jpg)
+
+
 
 > I use the term lock-free to describe a system which is guaranteed to make forward progress within a finite number of execution steps.
 
