@@ -1599,10 +1599,14 @@ The only possible situations that give us the result `x = 0, y = 0` at the end o
 
 only when the `Load x` and `Load y` ***happens before*** `Store x` and `Store y`, the result `r1` and `r2` will both be 0. See the word ***happens before***? We will come back to this ***happens before*** later, it is a very very tricky term. But for now, let's just say that the instruction of `Load x` and `Load y` takes effect, which is reading from our main memory, ***from a time perspective, happens before*** `Store x` and `Store y`, which is writing value to our main memory.
 
+How does it happen? How could `Load y` and `Load x` is ***reordered*** before `Store x` and `Store y`? It is really counter intuitive.
 
+Well, let's think about what actually happened after you type `Cargo run` in your terminal. 
 
+1. Your program will get compiled into assembly code. 
+2. CPU will execute these assembly code one instruction at a time. 
 
-
+So as you can see, our program is actually being handled by two different components, one is your complier, the other one is the CPU. Both the complier and the CPU are really "greedy", they will try all their best to optimize the execution of your program. So the complier will freely reorder the execution of you program, so does your CPU.
 
 compiler & CPU reordering.
 
