@@ -1594,7 +1594,15 @@ The only possible situations that give us the result `x = 0, y = 0` at the end o
 Load x -> Load y -> Store y -> Store x                  Result: r1 = 0, r2 = 0
 Load x -> Load y -> Store x -> Store y                  Result: r1 = 0, r2 = 0
 Load y -> Load x -> Store y -> Store x                  Result: r1 = 0, r2 = 0
+<<<<<<< Updated upstream
 Load y -> Load x -> Store x -> Store y                  Result: r1 = 0, r2 = 0 
+=======
+Load y -> Load x -> Store x -> Store y                  Result: r1 = 0, r2 = 0
+
+only when the `Load x` and `Load y` ***happens before(1st time mentioned)*** `Store x` and `Store y`, the result `r1` and `r2` will both be 0. See the ***happens before(2nd time mentioned)***? We will come back to this ***happens before(3rd time mentioned)*** later, it is a very very tricky term. But for now, let's try to understand from the natural language meaning of the ***happens before(4th time mentioned)***, so it is just 
+
+
+>>>>>>> Stashed changes
 
 compiler & CPU reordering.
 
