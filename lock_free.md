@@ -1612,12 +1612,18 @@ So in our earlier example, is it a compiler reordering result or a CPU reorderin
 
 > compiler_fence does not emit any machine code, but restricts the kinds of memory re-ordering the compiler is allowed to do. Specifically, depending on the given Ordering semantics, the compiler may be disallowed from moving reads or writes from before or after the call to the other side of the call to compiler_fence. Note that it does not prevent the hardware from doing such re-ordering.
 
-Pay attention to these two important information, 
+Pay attention to these two important informations, 
 
 1. Ordering semantics.
 2. Note that it does not prevent the hardware from doing such re-ordering
 
+Don't worry about the first one, [`Ordering`](https://doc.rust-lang.org/std/sync/atomic/enum.Ordering.html), there will be a whole chapter talking about this. But the second one is interesting, it basically implies that both of our compiler(software) and also the CPU(hardware) will reordering our program instruction. And this [`compiler_fence`](https://people.mpi-sws.org/~viktor/papers/popl2017-promising.pdf) is only merely helping us to prevent compiler(software) reordering but not CPU(hardware) reordering.
 
+So here is our updated code:
+
+```rust
+
+```
 
 
 > I use the term lock-free to describe a system which is guaranteed to make forward progress within a finite number of execution steps.
