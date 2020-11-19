@@ -1748,7 +1748,7 @@ Even with the compiler fence, we are still getting this strange behavior, so my 
 
 Crazy! Isn't it? Programmers are writing code with a logic behind, and logic is formed by the order of each piece of code you write, if the code's order in your `.rs` file doesn't hold, I am gonna panic!(literally panic, not the Rust code :)).
 
-However, CPU and compiler do give you some guarantees regarding reordering, quoted from (this)[https://preshing.com/20120625/memory-ordering-at-compile-time/]
+However, CPU and compiler do give you some guarantees regarding reordering, quoted from [Jeff Preshing](https://preshing.com/20120625/memory-ordering-at-compile-time/)
 
 > Thou shalt not modify the behavior of a single-threaded program.
 
