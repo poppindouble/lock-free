@@ -1722,7 +1722,7 @@ and here is my 15 inch MacBook Pro configuration:
 
 ![Configuration](13.jpg)
 
-This "wired" behavior is not happening frequently, I got this result only a few times. Feel free to test it out, and let me know the result if you get the same output as me. I guess the reason why it only happens on my 15 inch MacBook Pro instead of 13 inch MackBook Pro is that 15 inch MacBook has physical 4 cores, however, 13 inch MacBook only has 2 cores, but it used 
+This "wired" behavior is not happening frequently, I got this result only a few times. Feel free to test it out, and let me know the result if you get the same output as me. I guess the reason why it only happens on my 15 inch MacBook Pro instead of 13 inch MackBook Pro is that 15 inch MacBook has physical 4 cores, however, 13 inch MacBook only has 2 cores, but it used hyper-threading to mimic 4 cores, which is not a real core. This bug won't happen if the two threads are running on the same core.
 
 Still you don't need to be worried about the `Ordering::Release`
 
