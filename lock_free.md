@@ -1733,13 +1733,13 @@ So with this fence
 Thread 1 does the following: 
 
 1. Store x
-fence(SeqCst)
-2. Load y
+2. fence(SeqCst)
+3. Load y
 
 Thread 2 does the following:
 
 1. Store y
-fence(SeqCst)
+2. fence(SeqCst)
 2. Load x
 
 ## Atomic
