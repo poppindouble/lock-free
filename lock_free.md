@@ -1670,7 +1670,7 @@ fn main() {
                 *smx_1.num.get() = 1;
             }
 
-            compiler_fence(Ordering::Release);
+            compiler_fence(Ordering::SeqCst);
 
             unsafe {
                 *smr1.num.get() = *smy_1.num.get();
@@ -1688,7 +1688,7 @@ fn main() {
                 *smy_2.num.get() = 1;
             }
 
-            compiler_fence(Ordering::Release);
+            compiler_fence(Ordering::SeqCst);
 
             unsafe {
                 *smr2.num.get() = *smx_2.num.get();
@@ -1722,9 +1722,25 @@ and here is my 15 inch MacBook Pro configuration:
 
 ![Configuration](13.jpg)
 
-This "wired" behavior is not happening frequently, I got this result only a few times. Feel free to test it out, and let me know the result if you get the same output as me. I guess the reason why it only happens on my 15 inch MacBook Pro instead of 13 inch MackBook Pro is that 15 inch MacBook has physical 4 cores, however, 13 inch MacBook only has 2 cores, but it used hyper-threading to mimic 4 cores, which is not a real core. This bug won't happen if the two threads are running on the same core.
+This "wired" behavior is not happening frequently, I got this result only a few times. Feel free to test it out, and let me know the result if you get the same output as me. I guess the reason why it only happens on my 15 inch MacBook Pro instead of 13 inch MackBook Pro is that 15 inch MacBook has physical 4 cores, however, 13 inch MacBook only has 2 cores, but it used hyper-threading to mimic 4 cores, which is not a real core. This bug won't happen if the two threads are running on the same core. So I think macOS will try to put our execution into a physical core but different hyper-threads.
 
-Still you don't need to be worried about the `Ordering::Release`
+In the [`compiler_fence` document](https://people.mpi-sws.org/~viktor/papers/popl2017-promising.pdf):
+
+> with SeqCst, no re-ordering of reads and writes across this point is allowed.
+
+So with this fence
+
+Thread 1 does the following: 
+
+1. Store x
+fence(SeqCst)
+2. Load y
+
+Thread 2 does the following:
+
+1. Store y
+fence(SeqCst)
+2. Load x
 
 ## Atomic
 
