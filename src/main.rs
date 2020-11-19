@@ -1,4 +1,6 @@
 use std::cell::UnsafeCell;
+use std::sync::atomic::compiler_fence;
+use std::sync::atomic::Ordering;
 use std::sync::{Arc, Barrier};
 use std::thread;
 
@@ -8,17 +10,25 @@ struct SharedMemory {
 
 unsafe impl Sync for SharedMemory {}
 
+#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
 fn main() {
     let barrier = Arc::new(Barrier::new(3));
-    let shared_mem_x = Arc::new(SharedMemory{num: UnsafeCell::new(0)});
-    let shared_mem_y = Arc::new(SharedMemory{num: UnsafeCell::new(0)});
-    let shared_mem_r1 = Arc::new(SharedMemory{num: UnsafeCell::new(0)});
-    let shared_mem_r2 = Arc::new(SharedMemory{num: UnsafeCell::new(0)});
+    let shared_mem_x = Arc::new(SharedMemory {
+        num: UnsafeCell::new(0),
+    });
+    let shared_mem_y = Arc::new(SharedMemory {
+        num: UnsafeCell::new(0),
+    });
+    let shared_mem_r1 = Arc::new(SharedMemory {
+        num: UnsafeCell::new(0),
+    });
+    let shared_mem_r2 = Arc::new(SharedMemory {
+        num: UnsafeCell::new(0),
+    });
 
-    for i in 0..10000000 {
-
+    for i in 0..1000000000 {
         {
-            unsafe  {
+            unsafe {
                 *shared_mem_x.num.get() = 0;
                 *shared_mem_y.num.get() = 0;
                 *shared_mem_r1.num.get() = 0;
@@ -37,6 +47,8 @@ fn main() {
                 *smx_1.num.get() = 1;
             }
 
+            compiler_fence(Ordering::SeqCst);
+
             unsafe {
                 *smr1.num.get() = *smy_1.num.get();
             }
@@ -53,6 +65,8 @@ fn main() {
                 *smy_2.num.get() = 1;
             }
 
+            compiler_fence(Ordering::SeqCst);
+
             unsafe {
                 *smr2.num.get() = *smx_2.num.get();
             }
@@ -67,7 +81,10 @@ fn main() {
 
         unsafe {
             if *r1 == *r2 && *r1 == 0 {
-                println!("got it! r1: {:?}, r2: {:?}, current iteration number: {:?}", *r1, *r2, i);
+                println!(
+                    "got it! r1: {:?}, r2: {:?}, current iteration number: {:?}",
+                    *r1, *r2, i
+                );
             }
         }
     }
