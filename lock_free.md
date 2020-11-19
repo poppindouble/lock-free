@@ -1744,6 +1744,8 @@ Thread 2 does the following:
 
 If the Rust document is correct, think this `fence(SeqCst)` in this way, it is a ***two-way barrier*** for compiler, which means, all the `Store` instructions and the `Load` instructions ***before*** this fence, stays before it, all the `Store` instructions and the `Load` instructions ***after*** this fence stays after it, and most importantly, ***in the context of the code's order your `.rs` file.*** Well, I didn't mention any thing regarding to the order of all the `Store` instructions and the `Load` instructions ***before or after*** this fence. :)
 
+Even with the compiler fence, we are still getting this wired behavior, so my assumption is that this is actually a proof that our CPU(hardware) is reordering our assembly code.
+
 ## Atomic
 
 ## Memory Barrier
