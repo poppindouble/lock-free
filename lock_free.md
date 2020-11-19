@@ -1722,7 +1722,7 @@ and here is my 15 inch MacBook Pro configuration:
 
 ![Configuration](13.jpg)
 
-This "wired" behavior is not happening frequently, I got this result only a few times. Feel free to test it out, and let me know the result if you get the same output as me. I guess the reason why it only happens on my 15 inch MacBook Pro instead of 13 inch MackBook Pro is that 15 inch MacBook has physical 4 cores, however, 13 inch MacBook only has 2 cores, and it uses hyper-threading to mimic 4 cores, which is not a real physical core. This bug won't happen if the two threads are running on the same core. So I am making a guess that macOS will try to schedule our program's execution into a physical core but different hyper-threads, it is just my opinion, if I made any mistakes, please inform me.
+This "strange" behavior is not happening frequently, I got this result only a few times. Feel free to test it out, and let me know the result if you get the same output as me. I guess the reason why it only happens on my 15 inch MacBook Pro instead of 13 inch MackBook Pro is that 15 inch MacBook has physical 4 cores, however, 13 inch MacBook only has 2 cores, and it uses hyper-threading to mimic 4 cores, which is not a real physical core. This bug won't happen if the two threads are running on the same core. So I am making a guess that macOS will try to schedule our program's execution into a physical core but different hyper-threads, it is just my opinion, if I made any mistakes, please inform me. If the above example doesn't work on your Mac, restart your Mac, I guess macOS will try to "remember" some of your program's execution information, and try to optimize the execution by putting them into the same core.
 
 In the [`compiler_fence`](https://doc.rust-lang.org/core/sync/atomic/fn.compiler_fence.html):
 
@@ -1733,18 +1733,43 @@ So with this fence
 Thread 1 does the following: 
 
 1. Store x
-2. fence(SeqCst)
+2. compiler_fence(SeqCst)
 3. Load y
 
 Thread 2 does the following:
 
 1. Store y
-2. fence(SeqCst)
+2. compiler_fence(SeqCst)
 2. Load x
 
 If the Rust document is correct, think this `fence(SeqCst)` in this way, it is a ***two-way barrier*** for compiler, which means, all the `Store` instructions and the `Load` instructions ***before*** this fence, stays before it, all the `Store` instructions and the `Load` instructions ***after*** this fence stays after it, and most importantly, ***in the context of the code's order your `.rs` file.*** Well, I didn't mention any thing regarding to the order of all the `Store` instructions and the `Load` instructions ***before or after*** this fence. :)
 
-Even with the compiler fence, we are still getting this wired behavior, so my assumption is that this is actually a proof that our CPU(hardware) is reordering our assembly code.
+Even with the compiler fence, we are still getting this strange behavior, so my assumption is that this is actually a proof that our CPU(hardware) is reordering our assembly code.
+
+Crazy! Isn't it? Programmers are writing code with a logic behind, and logic is formed by the order of each piece of code you write, if the code's order in your `.rs` file doesn't hold, I am gonna panic!(literally panic, not the Rust code :)).
+
+However, CPU and compiler do give you some guarantees regarding reordering, quoted from (this)[https://preshing.com/20120625/memory-ordering-at-compile-time/]
+
+> Thou shalt not modify the behavior of a single-threaded program.
+
+What does it mean?
+
+let's say I have a single threaded program like this:
+
+1. Store x
+2. Store y
+
+the execution result will be the same as this one:
+
+1. Store y
+2. Store x
+
+That's just a simple example of compiler reordering.
+
+So, if you are writing single thread program, don't worry about it, you are good. If you are like me, enjoy the research of multi-threading "strange" behavior, then even though the behavior of a single-threaded program is hold(like above), the ***combination*** of multi single-threaded program might give you some unexpected result like above. That's the meaning of the above statement.
+
+### MESI with Source Control
+
 
 ## Atomic
 
