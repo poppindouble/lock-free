@@ -1608,7 +1608,7 @@ Well, let's think about what actually happened after you type `Cargo run` in you
 
 So as you can see, our program is actually being handled by two different components, one is your complier, the other one is the CPU. Both the complier and the CPU are really "greedy", they will try all their best to optimize the execution of your program. So the complier will freely reorder the execution of you program, so does your CPU. As a result, when the program is actually running on the hardware, you have no idea, which instruction is actually being executed first which one is being executed second. In fact, the compiler and CPU actually only give you some guarantees regarding the execution order of your program, but since most of the time, we are writing single thread program, and these phenomenons are not obvious in a single thread program. This blog won't cover those guarantees mentioned above, instead, I will present a really good mentality model: [Promising Semantics](https://people.mpi-sws.org/~viktor/papers/popl2017-promising.pdf) to tackle both compiler reordering and CPU reordering at the same time.
 
-So in our earlier example, is it a compiler reordering result or a CPU reordering result? There is a [`compiler_fence`](https://people.mpi-sws.org/~viktor/papers/popl2017-promising.pdf) function.
+So in our earlier example, is it a compiler reordering result or a CPU reordering result? There is a [`compiler_fence`](https://doc.rust-lang.org/core/sync/atomic/fn.compiler_fence.html) function.
 
 > compiler_fence does not emit any machine code, but restricts the kinds of memory re-ordering the compiler is allowed to do. Specifically, depending on the given Ordering semantics, the compiler may be disallowed from moving reads or writes from before or after the call to the other side of the call to compiler_fence. Note that it does not prevent the hardware from doing such re-ordering.
 
@@ -1617,7 +1617,7 @@ Pay attention to these two important informations,
 1. Ordering semantics.
 2. Note that it does not prevent the hardware from doing such re-ordering
 
-Don't worry about the first one, [`Ordering`](https://doc.rust-lang.org/std/sync/atomic/enum.Ordering.html), you will see the meaning of this `Ordering` later. But the second one is interesting, it basically implies that both of our compiler(software) and also the CPU(hardware) will reordering our program instruction. And this [`compiler_fence`](https://people.mpi-sws.org/~viktor/papers/popl2017-promising.pdf) is only merely helping us to prevent compiler(software) reordering but not CPU(hardware) reordering.
+Don't worry about the first one, [`Ordering`](https://doc.rust-lang.org/std/sync/atomic/enum.Ordering.html), you will see the meaning of this `Ordering` later. But the second one is interesting, it basically implies that both of our compiler(software) and also the CPU(hardware) will reordering our program instruction. And this [`compiler_fence`](https://doc.rust-lang.org/core/sync/atomic/fn.compiler_fence.html) is only merely helping us to prevent compiler(software) reordering but not CPU(hardware) reordering.
 
 So here is our updated code:
 
@@ -1722,9 +1722,9 @@ and here is my 15 inch MacBook Pro configuration:
 
 ![Configuration](13.jpg)
 
-This "wired" behavior is not happening frequently, I got this result only a few times. Feel free to test it out, and let me know the result if you get the same output as me. I guess the reason why it only happens on my 15 inch MacBook Pro instead of 13 inch MackBook Pro is that 15 inch MacBook has physical 4 cores, however, 13 inch MacBook only has 2 cores, but it used hyper-threading to mimic 4 cores, which is not a real core. This bug won't happen if the two threads are running on the same core. So I think macOS will try to put our execution into a physical core but different hyper-threads.
+This "wired" behavior is not happening frequently, I got this result only a few times. Feel free to test it out, and let me know the result if you get the same output as me. I guess the reason why it only happens on my 15 inch MacBook Pro instead of 13 inch MackBook Pro is that 15 inch MacBook has physical 4 cores, however, 13 inch MacBook only has 2 cores, and it uses hyper-threading to mimic 4 cores, which is not a real physical core. This bug won't happen if the two threads are running on the same core. So I am making a guess that macOS will try to schedule our program's execution into a physical core but different hyper-threads, it is just my opinion, if I made any mistakes, please inform me.
 
-In the [`compiler_fence` document](https://people.mpi-sws.org/~viktor/papers/popl2017-promising.pdf):
+In the [`compiler_fence`](https://doc.rust-lang.org/core/sync/atomic/fn.compiler_fence.html):
 
 > with SeqCst, no re-ordering of reads and writes across this point is allowed.
 
