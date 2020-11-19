@@ -1770,6 +1770,83 @@ So, if you are writing single thread program, don't worry about it, you are good
 
 ### MESI with Source Control
 
+there must be a way how core communicate with each other.
+
+store a
+store-store (no following store go above me, no preceded store go below me)
+store b
+
+i just make sure a lives in main memory before b, it could happen later
+
+load a
+load-load (no following load go above me, no preceded load go below me)
+load b
+
+make sure load a from main memory first and then load b from main memory, it might not load the newest, but at least it is as new as the one we have in current cache.
+
+load a
+load-store(no following store go above me no above load go below me)
+store b
+
+make sure load a from memory first and then store b to main memory
+
+store a
+store-load
+load b
+
+completely sync.
+
+multiple instruction might be existed between
+
+store a
+store x
+store-store (no following store go above me, no preceded store go below me)
+store y
+store b
+
+could be
+
+store x
+store a
+store-store (no following store go above me, no preceded store go below me)
+store b
+store y
+
+
+
+
+
+load a
+store x
+load-store(no following store go above me, no above load go below me)
+load y
+store b
+
+could be
+
+load a
+load y
+load-store(no following store go above me, no above load go below me)
+store x
+store b
+
+
+release:
+
+load-store + store-store(no following store go above me, no above load go below me, no preceded store go below me)
+
+update main memory with load and store, then do the store,
+
+the same store at both fence, is to that specific value(lock)
+
+
+acquire:
+
+load-load + load-store
+
+update local cache with remote first, then do the load store.
+
+the same load at both fence, is to that specific value(lock)
 
 ## Atomic
 
