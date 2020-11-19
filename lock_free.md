@@ -1617,7 +1617,7 @@ Pay attention to these two important informations,
 1. Ordering semantics.
 2. Note that it does not prevent the hardware from doing such re-ordering
 
-Don't worry about the first one, [`Ordering`](https://doc.rust-lang.org/std/sync/atomic/enum.Ordering.html), there will be a whole chapter talking about this. But the second one is interesting, it basically implies that both of our compiler(software) and also the CPU(hardware) will reordering our program instruction. And this [`compiler_fence`](https://people.mpi-sws.org/~viktor/papers/popl2017-promising.pdf) is only merely helping us to prevent compiler(software) reordering but not CPU(hardware) reordering.
+Don't worry about the first one, [`Ordering`](https://doc.rust-lang.org/std/sync/atomic/enum.Ordering.html), you will see the meaning of this `Ordering` later. But the second one is interesting, it basically implies that both of our compiler(software) and also the CPU(hardware) will reordering our program instruction. And this [`compiler_fence`](https://people.mpi-sws.org/~viktor/papers/popl2017-promising.pdf) is only merely helping us to prevent compiler(software) reordering but not CPU(hardware) reordering.
 
 So here is our updated code:
 
@@ -1741,6 +1741,8 @@ Thread 2 does the following:
 1. Store y
 2. fence(SeqCst)
 2. Load x
+
+If the Rust document is correct, think this `fence(SeqCst)` in this way, it is a ***two-way barrier*** for compiler, which means, all the `Store` instructions and the `Load` instructions ***before*** this fence, stays before it, all the `Store` instructions and the `Load` instructions ***after*** this fence stays after it, and most importantly, ***in the context of the code's order your `.rs` file.*** Well, I didn't mention any thing regarding to the order of all the `Store` instructions and the `Load` instructions ***before or after*** this fence. :)
 
 ## Atomic
 
