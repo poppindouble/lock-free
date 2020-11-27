@@ -1817,12 +1817,31 @@ store y
 
 
 load a
+store z
+load-store(no following store go above me, no above load go below me)
+load z
+store b
+
+could it be?
+
+load a
+load z
+load-store(no following store go above me, no above load go below me)
+store z
+store b
+
+I don't think so, coherence.
+
+
+how about
+
+load a
 store x
 load-store(no following store go above me, no above load go below me)
 load y
 store b
 
-could be
+could it be?
 
 load a
 load y
@@ -1830,21 +1849,33 @@ load-store(no following store go above me, no above load go below me)
 store x
 store b
 
+yes, no dependency.
+
+
+
 
 release:
 
 load-store + store-store(no following store go above me, no above load go below me, no preceded store go below me)
 
-update main memory with load and store, then do the store,
+update local cache with load and update main memory with store, then do the store,
 
 the same store at both fence, is to that specific value(lock)
 
 
+store z
+
+load-store + store-store
+
+load x
+
+
+
 acquire:
 
-load-load + load-store
+load-load + load-store(no following store go above me, no above load go below me, no following load go above me)
 
-update local cache with remote first, then do the load store.
+update local cache with remote first, then update local cache with load and update main memory with store.
 
 the same load at both fence, is to that specific value(lock)
 
@@ -1853,6 +1884,36 @@ the same load at both fence, is to that specific value(lock)
 ## Memory Barrier
 
 ## What Is A Lock?
+
+```rust
+use std::sync::atomic::AtomicBool;
+use std::sync::atomic::fence;
+use std::sync::atomic::Ordering;
+
+// A mutual exclusion primitive based on spinlock.
+pub struct Mutex {
+    flag: AtomicBool,
+}
+
+impl Mutex {
+    pub fn new() -> Mutex {
+        Mutex {
+            flag: AtomicBool::new(false),
+        }
+    }
+
+    pub fn lock(&self) {
+        // Wait until the old value is `false`.
+        while self.flag.compare_and_swap(false, true, Ordering::Relaxed) != false {}
+        // This fence synchronizes-with store in `unlock`.
+        fence(Ordering::Acquire);
+    }
+
+    pub fn unlock(&self) {
+        self.flag.store(false, Ordering::Release);
+    }
+}
+```
 
 ## Third Attempt For Optimization
 lock free
