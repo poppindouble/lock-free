@@ -1770,13 +1770,43 @@ So, if you are writing single thread program, don't worry about it, you are good
 
 ### MESI with Source Control
 
-there must be a way how core communicate with each other.
+Remember the MESI protocol we mentioned above? It is time to use this protocol to help us understand what actually happened under the hood of shared memory access. Since each physical core has its own cache, and all the physical cores share the same main memory, there must be a way how cores are communicating with each other, or you can say there must be some mechanism to coordinate these threads of reading the shared memory value.
 
-store a
-store-store (no following store go above me, no preceded store go below me)
-store b
+I took some ideas from [Jeff Preshing](https://preshing.com/20120710/memory-barriers-are-like-source-control-operations/) regarding how to explain this tricky topic, and combine my own understanding of memory fences to give out the following model.
 
-i just make sure a lives in main memory before b, it could happen later
+There are totally 4 barriers I am gonna introduce:
+
+1. #StoreStore
+
+Let's say we have the following pseudo code:
+
+```
+Store A 1
+
+#StoreStore
+
+Store B 2
+```
+
+The `#StoreStore` barrier means ***No following store go above me and no preceded store go below me***.
+
+Imagine when we execute this code, single threaded, we write a value into our local core cache, saying `A = 1`, then we counter the barrier, after the barrier we have another store operation, saying `B = 2`, with this #StoreStore barrier, we are making sure that the CPU will ***push*** `A = 1` into main memory first, and then ***push*** `B = 2` to the main memory. If we don't have this #StoreStore barrier, there is no guarantee that `A = 1` will be ***visible*** in main memory ***before*** `B = 1`, which means, its totally reasonable to do the following: write `A = 1` in local core cache, write `B = 1` in local core cache, ***push*** `B = 1` to main memory, ***push*** `A = 1` to main memory.
+
+2. #LoadLoad
+
+Let's say we have the following pseudo code:
+
+```
+Load A
+
+#LoadLoad
+
+Load B
+```
+
+The `#LoadLoad` barrier means ***No following load go above me, no preceded load go below me***.
+
+
 
 load a
 load-load (no following load go above me, no preceded load go below me)
