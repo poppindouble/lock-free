@@ -1806,13 +1806,35 @@ Load B
 
 The `#LoadLoad` barrier means ***No following load go above me, no preceded load go below me***.
 
+Imagine when we execute this code, single threaded, we load a value from `A`, then we counter the barrier, after the barrier we have another load operation, load a value from `B`, with this #LoadLoad barrier, we are making sure that the CPU will ***pull*** the value from `A` in the main memory first, and update the core cache of `A`'s value, then ***pull*** the value from `B` in the main memory, and update `B`'s value in the local core cache. If we don't have this #LoadLoad barrier, there is no guarantee that we load `A`'s value from main memory first and update its local core cache of `A` first and the do the same thing with `B`.
+
+There is a really important detail here. This #LoadLoad barrier only offers you the above guarantee, and nothing much more! It didn't give the programmer the guarantee that `A` or `B` will load the ***newest*** value, which means, this #LoadLoad barrier does not ***sync up*** with the main memory! As long as the value we ***pull*** from the main memory is newer then the local core cache, then it is fine.
+
+It sounds very strange at the beginning, but let's think in this way:
+
+We are running 2 threads at the same time.
+
+Thread 1:
+
+```
+Load A
+
+#LoadLoad
+
+Load B
+```
+
+Thread 2:
+
+```
+Store A
+```
+
+Thread 2 get executed first, but the new value is only existed in its local core cache, not yet ***push*** to the main memory, so it is completely reasonable that `Load A` in thread 1 load an older value of `A`. However if the value written by thread 2 get ***pushed*** to the main memory first, then `Load A` in thread 1 will be able to read the newest value of `A`(like a sync up with main memory).
+
+3. #LoadStore
 
 
-load a
-load-load (no following load go above me, no preceded load go below me)
-load b
-
-make sure load a from main memory first and then load b from main memory, it might not load the newest, but at least it is as new as the one we have in current cache.
 
 load a
 load-store(no following store go above me no above load go below me)
