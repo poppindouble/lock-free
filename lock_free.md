@@ -1764,9 +1764,9 @@ the execution result will be the same as this one:
 1. Store y
 2. Store x
 
-That's just a simple example of compiler reordering.
+That's just a simple example of compiler reordering, As long as the execution result of a single-threaded program is hold, then the reordering is allowed. So as you can see, each thread is really ***isolated*** with each other, as long as the logic in that thread holds, any code reordering might happen in that thread, and other thread won't notice this.
 
-So, if you are writing single thread program, don't worry about it, you are good. If you are like me, enjoy the research of multi-threading "strange" behavior, then even though the behavior of a single-threaded program is hold(like above), the ***combination*** of multi single-threaded program might give you some unexpected result like above. That's the meaning of the above statement.
+So, if you are writing single thread program, don't worry about it, you are good. If you are like me, enjoy the research of multi-threading "strange" behavior, then even though the behavior of a single-threaded program is hold(like above), the ***combination*** of multi single-threaded program might give you some unexpected result like above.
 
 ### MESI with Source Control
 
