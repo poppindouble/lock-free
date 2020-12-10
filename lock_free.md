@@ -1792,6 +1792,8 @@ The `#StoreStore` barrier means ***No following store go above me and no precede
 
 Imagine when we execute this code, single threaded, we write a value into our local core cache, saying `A = 1`, then we counter the barrier, after the barrier we have another store operation, saying `B = 2`, with this #StoreStore barrier, we are making sure that the CPU will ***push*** `A = 1` into main memory first, and then ***push*** `B = 2` to the main memory. If we don't have this #StoreStore barrier, there is no guarantee that `A = 1` will be ***visible*** in main memory ***before*** `B = 1`, which means, its totally reasonable to do the following: write `A = 1` in local core cache, write `B = 1` in local core cache, ***push*** `B = 1` to main memory, ***push*** `A = 1` to main memory.
 
+Mind you, this #StoreStore barrier only offers you the above guarantee, and nothing much more! It didn't give the programmer the guarantee that the ***push*** will happen right away, it it happening in an ***async*** way, which means, the new value of `A` and `B` might live in the local core cache for a while before they actually being flushed to the main memory, and during this delay period, other thread might push their new values of `A` and `B` before handed.
+
 2. #LoadLoad
 
 Let's say we have the following pseudo code:
@@ -1808,7 +1810,7 @@ The `#LoadLoad` barrier means ***No following load go above me, no preceded load
 
 Imagine when we execute this code, single threaded, we load a value from `A`, then we counter the barrier, after the barrier we have another load operation, load a value from `B`, with this #LoadLoad barrier, we are making sure that the CPU will ***pull*** the value from `A` in the main memory first, and update the core cache of `A`'s value, then ***pull*** the value from `B` in the main memory, and update `B`'s value in the local core cache. If we don't have this #LoadLoad barrier, there is no guarantee that we load `A`'s value from main memory first and update its local core cache of `A` first and the do the same thing with `B`.
 
-There is a really important detail here. This #LoadLoad barrier only offers you the above guarantee, and nothing much more! It didn't give the programmer the guarantee that `A` or `B` will load the ***newest*** value, which means, this #LoadLoad barrier does not ***sync up*** with the main memory! As long as the value we ***pull*** from the main memory is newer then the local core cache, then it is fine.
+Mind you, this #LoadLoad barrier only offers you the above guarantee, and nothing much more! It didn't give the programmer the guarantee that `A` or `B` will load the ***newest*** value, which means, this #LoadLoad barrier does not ***sync up*** with the main memory! As long as the value we ***pull*** from the main memory is newer then the local core cache, then it is fine.
 
 It sounds very strange at the beginning, but let's think in this way:
 
@@ -1834,19 +1836,43 @@ Thread 2 get executed first, but the new value is only existed in its local core
 
 3. #LoadStore
 
+Let's say we have the following pseudo code:
+
+```
+Load A
+
+#LoadStore
+
+Store B 1
+```
+
+The `#LoadStore` barrier means ***No following store go above me, no preceded load go below me***.
+
+Imagine when we execute this code, single threaded, we load a value from `A`, then we counter the barrier, after the barrier we have another store operation, store a new value into `B`, with this #LoadStore barrier, we are making sure that the CPU will ***pull*** the value from `A` in the main memory first, and update the core cache of `A`'s value, then write the new value into `B` in the local cache core, and then ***push*** the new value of `B` into the main memory. If we don't have this #LoadStore barrier, there is no guarantee that we load `A`'s value from main memory first and update its local core cache of `A` first and then store a new value into `B` in local core cache then push this new value into main memory.
+
+Mind you, this #LoadLoad barrier only offers you the above guarantee, and nothing much more! It didn't give the programmer the guarantee that `A` will load the ***newest*** value(like #LoadLoad), also it doesn't guarantee that the new value of `B` will be ***pushed*** into main memory right away, it might happen in an `async` way as well(like #StoreStore).
+
+4. #StoreLoad
+
+The `StoreLoad` barrier means ***No following load go above me, no preceded store go below me.***
+
+This is a special barrier, and also an expensive one. Let's say we have the following pseudo code:
+
+```
+Store A 1
+
+#StoreLoad
+
+Load B
+```
+
+Imagine when we execute this code, single threaded, we write a value into our local core cache, saying `A = 1`, then we counter the barrier, after the barrier we have a load operation, `Load B`, and this is the special part of this barrier, when we counter the #StoreLoad barrier, the new value of `A`, which currently live in the local cache will be ***pushed*** to main memory, which means the new value of `A` will be ***visible*** to other threads as well, because it is currently alive in the main memory, and then perform the load operation, and the load operation will read the ***newest*** value from our main memory. Well, the word "newest" here means, the current value in main memory, not include those already in local core cache but not yet flush to the main memory. This barrier is the strongest barrier, it force your local core cache flush to the main memory before we execute the load operation. We call this behavior ***Sequentially Consistent***, and this is the only barrier that will prevent we get `r1 == r2 == 0` in our previous example.
 
 
-load a
-load-store(no following store go above me no above load go below me)
-store b
+=========================================W.I.P===================================================
 
-make sure load a from memory first and then store b to main memory
 
-store a
-store-load
-load b
 
-completely sync.
 
 multiple instruction might be existed between
 
