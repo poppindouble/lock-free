@@ -1774,7 +1774,9 @@ Remember the MESI protocol we mentioned above? It is time to use this protocol t
 
 I took some ideas from [Jeff Preshing](https://preshing.com/20120710/memory-barriers-are-like-source-control-operations/) regarding how to explain this tricky topic, and combine my own understanding of memory fences to give out the following model.
 
-There are totally 4 barriers I am gonna introduce:
+With MESI protocol, we can think the relation between our local core caches and main memory as a source control model, like Git. The main memory is like our remote source code, and each local core cache is like different developer working on their local git branch, and each developer keeps a copy of the remote source code. Then the system must be able to offer some interface for each developer to push their local changes to remote code base, and pull certain remote branch into the local working directory.
+
+There are totally 4 barriers:
 
 1. #StoreStore
 
@@ -1788,7 +1790,7 @@ Store A 1
 Store B 2
 ```
 
-The `#StoreStore` barrier means ***No following store go above me and no preceded store go below me***.
+The `#StoreStore` barrier means ***If there are store operations on both side of this barrier, then no following store go above me and no preceded store go below me***.
 
 Imagine when we execute this code, single threaded, we write a value into our local core cache, saying `A = 1`, then we counter the barrier, after the barrier we have another store operation, saying `B = 2`, with this #StoreStore barrier, we are making sure that the CPU will ***push*** `A = 1` into main memory first, and then ***push*** `B = 2` to the main memory. If we don't have this #StoreStore barrier, there is no guarantee that `A = 1` will be ***visible*** in main memory ***before*** `B = 1`, which means, its totally reasonable to do the following: write `A = 1` in local core cache, write `B = 1` in local core cache, ***push*** `B = 1` to main memory, ***push*** `A = 1` to main memory.
 
@@ -1806,7 +1808,7 @@ Load A
 Load B
 ```
 
-The `#LoadLoad` barrier means ***No following load go above me, no preceded load go below me***.
+The `#LoadLoad` barrier means ***If there are load operations on both side of this barrier, then no following load go above me, no preceded load go below me***.
 
 Imagine when we execute this code, single threaded, we load a value from `A`, then we counter the barrier, after the barrier we have another load operation, load a value from `B`, with this #LoadLoad barrier, we are making sure that the CPU will ***pull*** the value from `A` in the main memory first, and update the core cache of `A`'s value, then ***pull*** the value from `B` in the main memory, and update `B`'s value in the local core cache. If we don't have this #LoadLoad barrier, there is no guarantee that we load `A`'s value from main memory first and update its local core cache of `A` first and the do the same thing with `B`.
 
@@ -1846,7 +1848,7 @@ Load A
 Store B 1
 ```
 
-The `#LoadStore` barrier means ***No following store go above me, no preceded load go below me***.
+The `#LoadStore` barrier means ***If there are load operations locate precede this barrier and there are store operations locate after this barrier, then no following store go above me, no preceded load go below me***.
 
 Imagine when we execute this code, single threaded, we load a value from `A`, then we counter the barrier, after the barrier we have another store operation, store a new value into `B`, with this #LoadStore barrier, we are making sure that the CPU will ***pull*** the value from `A` in the main memory first, and update the core cache of `A`'s value, then write the new value into `B` in the local cache core, and then ***push*** the new value of `B` into the main memory. If we don't have this #LoadStore barrier, there is no guarantee that we load `A`'s value from main memory first and update its local core cache of `A` first and then store a new value into `B` in local core cache then push this new value into main memory.
 
@@ -1854,7 +1856,7 @@ Mind you, this #LoadLoad barrier only offers you the above guarantee, and nothin
 
 4. #StoreLoad
 
-The `StoreLoad` barrier means ***No following load go above me, no preceded store go below me.***
+The `StoreLoad` barrier means ***If there are store operations locate precede this barrier and there are load operations locate after this barrier, no following load go above me, no preceded store go below me.***
 
 This is a special barrier, and also an expensive one. Let's say we have the following pseudo code:
 
@@ -1866,12 +1868,43 @@ Store A 1
 Load B
 ```
 
-Imagine when we execute this code, single threaded, we write a value into our local core cache, saying `A = 1`, then we counter the barrier, after the barrier we have a load operation, `Load B`, and this is the special part of this barrier, when we counter the #StoreLoad barrier, the new value of `A`, which currently live in the local cache will be ***pushed*** to main memory, which means the new value of `A` will be ***visible*** to other threads as well, because it is currently alive in the main memory, and then perform the load operation, and the load operation will read the ***newest*** value from our main memory. Well, the word "newest" here means, the current value in main memory, not include those already in local core cache but not yet flush to the main memory. This barrier is the strongest barrier, it force your local core cache flush to the main memory before we execute the load operation. We call this behavior ***Sequentially Consistent***, and this is the only barrier that will prevent we get `r1 == r2 == 0` in our previous example.
+Imagine when we execute this code, single threaded, we write a value into our local core cache, saying `A = 1`, then we counter the barrier, after the barrier we have a load operation, `Load B`, and this is the special part of this barrier, when we counter the #StoreLoad barrier, the new value of `A`, which currently live in the local cache will be ***pushed*** to main memory, which means the new value of `A` will be ***visible*** to other threads as well, because it is currently alive in the main memory, and then perform the load operation, and the load operation will read the ***newest*** value from our main memory. Well, the word "newest" here means, the current value in main memory, not include those already in local core cache but not yet flush to the main memory. This barrier is the strongest barrier, it force your local core cache flush to the main memory before we execute the load operation. We call this behavior ***Sequentially Consistent***, and this is the only barrier that will prevent we get `r1 == r2 == 0` in our previous example(see below explanation). You can think this barrier is syncing with our main memory, all the load after the barrier will load the newest value from main memory.
+
+One interesting thing to think about is that: What is the difference between a #StoreLoad barrier and #StoreStore + #LoadLoad combination of two barriers or even #StoreStore + #LoadLoad + #LoadStore? Let's go back to our previous example:
+
+Thread 1 does the following: 
+
+1. Store X 1
+2. #StoreStore + #LoadLoad + #LoadStore
+3. Load Y
+
+Thread 2 does the following:
+
+1. Store Y 1
+2. #StoreStore + #LoadLoad + #LoadStore
+2. Load X
+
+If you go through the definitions about different barriers carefully, none of the "if" condition in those definitions are satisfied in this example. So it is still complete reasonable that we get `r1 == r2 == 0` in our previous example. 
+
+However, if we use #StoreLoad barrier, then we can prevent the reordering of the above example.
+
+Thread 1 does the following: 
+
+1. Store X 1
+2. #StoreLoad(no following load go above me, no preceded store go below me)
+3. Load Y
+
+Thread 2 does the following:
+
+1. Store Y 1
+2. #StoreLoad(no following load go above me, no preceded store go below me)
+2. Load X
+
 
 
 =========================================W.I.P===================================================
 
-
+### More on the barriers
 
 
 multiple instruction might be existed between
