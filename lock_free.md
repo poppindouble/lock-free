@@ -848,7 +848,6 @@ Well, `Rc` is not necessary in our `LazyTransformer` example. This type is more 
 
 ![example](2.jpg)
 
-
 ## First Attempt For Optimization
 
 From here we gonna assume the reader has some basic understanding regarding to the concept of multi-thread, context switch, Mutex, etc.
@@ -1303,7 +1302,7 @@ fn main() {
 
 Here is some explanation of the above code:
 
-`UnthreadSafeStruct`, we have been introduced what is `UnsafeCell`, `UnsafeCell` itself is not thread safe, you can actually find it implement the [`!Sync`](https://doc.rust-lang.org/std/cell/struct.UnsafeCell.html#impl-Sync) trail. In order to make our `struct` sharable by multi-thread. We need to mark this `struct` as [`Sync`](https://doc.rust-lang.org/std/marker/trait.Sync.html). By doing this, basically we are telling the compiler that, "Trust me, I am a really good Rust developer, I know how memory management works, I know how to handle data races, I will remember the ***creed***, let me handle tricky stuff." 
+`UnthreadSafeStruct`, we have been introduced what is `UnsafeCell`, `UnsafeCell` itself is not thread safe, you can actually find it implement the [`!Sync`](https://doc.rust-lang.org/std/cell/struct.UnsafeCell.html#impl-Sync) trail. In order to make our `struct` sharable by multi-thread. We need to mark this `struct` as [`Sync`](https://doc.rust-lang.org/std/marker/trait.Sync.html). By doing this, basically we are telling the compiler that, "Trust me, I am a really good Rust developer, I know how memory management works, I know how to handle data races, I will remember the ***creed***, let me handle tricky stuff."
 
 `Barrier`, don't confuse this `Barrier` with ***Memory Fence***, I will talk about ***Memory Fence*** later in this blog, let's focus on [`Barrier`](https://doc.rust-lang.org/std/sync/struct.Barrier.html) for now. `Barrier` is a counter-like synchronization structure. It blocks until a fixed number of `wait` calls are made from various threads (like waiting for all players to get to the starting line before firing the starter pistol).
 

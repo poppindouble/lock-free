@@ -1,7 +1,7 @@
 use std::boxed::Box;
 use std::{thread, time};
 
-trait Transformer<S,V> {
+trait Transformer<S, V> {
     fn set_source(&mut self, source: S);
     fn get_transformed(&mut self) -> Option<V>;
 }
@@ -23,7 +23,6 @@ impl<S: Clone, V: Clone> LazyTransformer<S, V> {
 }
 
 impl<S: Clone, V: Clone> Transformer<S, V> for LazyTransformer<S, V> {
-
     fn set_source(&mut self, source: S) {
         self.source = Some(source);
     }
