@@ -10,6 +10,7 @@ This series blog is a learning path of lock-free programing in Rust. We will sta
 5. [From a CPU Perspective](#from-a-cpu-perspective)
 6. [Atomic](#atomic)
 7. [Memory barrier](#memory-barrier)
+8. [Promising Semantics](#promising-semantics)
 8. [What is a lock?](#what-is-a-lock)
 9. [Third attempt for optimization](#third-attempt-for-optimization)
 10. [Memory management](#memory-management)
@@ -1992,6 +1993,12 @@ the same load at both fence, is to that specific value(lock)
 ## Atomic
 
 ## Memory Barrier
+
+## Promising Semantics
+
+Is there a way we can model both CPU reordering(hardware) and memory reordering(software) at the same time?
+
+Promising Semantics is the way to go.
 
 ## What Is A Lock?
 
