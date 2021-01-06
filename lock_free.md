@@ -1904,7 +1904,7 @@ Thread 2 does the following:
 
 =========================================W.I.P===================================================
 
-=======================================Busy with work, will be back in a few days=====================
+=======================================I am reading more about concurreny these days, a lot of things need to be learned first before I put it here, stay tune, will be back after I implement several lock free data structures=====================
 
 ### More on the barriers
 
