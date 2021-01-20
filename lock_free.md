@@ -2034,6 +2034,19 @@ impl Mutex {
 }
 ```
 
+## This is not fair!
+
+### CLHLock
+### TicketLock
+
+## Lock free data structures
+
+### Treiber Stack
+### Michael-Scott's Queue
+### Lock free linked lists
+### Lock free growable array
+### Lock free hashmap
+
 ## Third Attempt For Optimization
 lock free
 
